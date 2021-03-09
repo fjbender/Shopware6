@@ -80,6 +80,10 @@
             <argument type="service" id="Kiener\MolliePayments\Validator\OrderLineItemValidator"/>
         </service>
 
+        <service id="Kiener\MolliePayments\Service\RefundService" class="Kiener\MolliePayments\Service\RefundService">
+            <argument type="service" id="Kiener\MolliePayments\Service\OrderService"/>
+        </service>
+
         <service id="Kiener\MolliePayments\Service\PaymentMethodService" class="Kiener\MolliePayments\Service\PaymentMethodService" public="true">
             <argument type="service" id="Shopware\Core\Content\Media\MediaService"/>
             <argument type="service" id="media.repository"/>
@@ -159,6 +163,8 @@
             <call method="setContainer">
                 <argument type="service" id="service_container"/>
             </call>
+
+            <argument type="service" id="Kiener\MolliePayments\Service\RefundService"/>
         </service>
 
         <service id="Kiener\MolliePayments\Storefront\Controller\ShippingController" public="true">

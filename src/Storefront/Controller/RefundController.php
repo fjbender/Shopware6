@@ -6,6 +6,7 @@ use Exception;
 use Kiener\MolliePayments\Factory\MollieApiFactory;
 use Kiener\MolliePayments\Service\CustomFieldService;
 use Kiener\MolliePayments\Service\OrderService;
+use Kiener\MolliePayments\Service\RefundService;
 use Kiener\MolliePayments\Service\SettingsService;
 use Kiener\MolliePayments\Setting\MollieSettingStruct;
 use Mollie\Api\Exceptions\ApiException;
@@ -19,6 +20,8 @@ use Shopware\Core\Framework\DataAbstractionLayer\EntityRepositoryInterface;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 use Shopware\Core\Framework\Routing\Annotation\RouteScope;
+use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Core\Framework\Validation\DataBag\RequestDataBag;
 use Shopware\Storefront\Controller\StorefrontController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -47,6 +50,8 @@ class RefundController extends StorefrontController
     private const RESPONSE_KEY_AMOUNT = 'amount';
     private const RESPONSE_KEY_ITEMS = 'items';
     private const RESPONSE_KEY_SUCCESS = 'success';
+    private const RESPONSE_KEY_REFUNDABLE = 'refundable';
+    private const RESPONSE_KEY_REFUNDED = 'refundeds';
 
     /** @var MollieApiFactory */
     private $apiFactory;
@@ -63,6 +68,9 @@ class RefundController extends StorefrontController
     /** @var SettingsService */
     private $settingsService;
 
+    /** @var RefundService  */
+    private $refundService;
+
     /**
      * Creates a new instance of the onboarding controller.
      *
@@ -77,7 +85,8 @@ class RefundController extends StorefrontController
         EntityRepositoryInterface $orderLineItemRepository,
         OrderService $orderService,
         OrderTransactionStateHandler $orderTransactionStateHandler,
-        SettingsService $settingsService
+        SettingsService $settingsService,
+        RefundService $refundService
     )
     {
         $this->apiFactory = $apiFactory;
@@ -85,6 +94,7 @@ class RefundController extends StorefrontController
         $this->orderService = $orderService;
         $this->orderTransactionStateHandler = $orderTransactionStateHandler;
         $this->settingsService = $settingsService;
+        $this->refundService = $refundService;
     }
 
     /**
@@ -274,39 +284,30 @@ class RefundController extends StorefrontController
      *
      * @return JsonResponse
      */
-    public function total(Request $request): JsonResponse
+    public function total(RequestDataBag $data): JsonResponse
     {
-        /** @var float $amount */
-        $amount = 0.0;
+        $orderId = $data->getAlnum('orderId');
 
-        /** @var int $items */
-        $items = 0;
-
-        /** @var OrderEntity $order */
-        $order = null;
-
-        /** @var string $orderId */
-        $orderId = $request->get('orderId');
-
-        if ($orderId !== '') {
-            $order = $this->orderService->getOrder($orderId, Context::createDefaultContext());
+        if (!Uuid::isValid($orderId)) {
+            return $this->json([
+                'error' => 'invalid id'
+            ], 400);
         }
 
-        if ($order !== null) {
-            foreach ($order->getLineItems() as $lineItem) {
-                if (
-                    !empty($lineItem->getCustomFields())
-                    && isset($lineItem->getCustomFields()[self::CUSTOM_FIELDS_KEY_REFUNDED_QUANTITY])
-                ) {
-                    $amount += ($lineItem->getUnitPrice() * (int)$lineItem->getCustomFields()[self::CUSTOM_FIELDS_KEY_REFUNDED_QUANTITY]);
-                    $items += (int)$lineItem->getCustomFields()[self::CUSTOM_FIELDS_KEY_REFUNDED_QUANTITY];
-                }
-            }
+        $order = $this->orderService->getOrder($orderId, Context::createDefaultContext());
+
+        if (is_null($order)) {
+            return $this->json([
+                'error' => 'order not found'
+            ], 404);
         }
 
-        return new JsonResponse([
-            self::RESPONSE_KEY_AMOUNT => $amount,
-            self::RESPONSE_KEY_ITEMS => $items,
+        $refundable = $this->refundService->getRefundableAmount($order);
+        $refunded = $this->refundService->getRefundedAmount($order);
+
+        return $this->json([
+            self::RESPONSE_KEY_REFUNDABLE => $refundable,
+            self::RESPONSE_KEY_REFUNDED => $refunded,
         ]);
     }
 
