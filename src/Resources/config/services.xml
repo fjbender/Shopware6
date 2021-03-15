@@ -248,7 +248,9 @@
 
 
         <!-- Validators -->
-        <service id="Kiener\MolliePayments\Validator\OrderLineItemValidator"/>
+        <service id="Kiener\MolliePayments\Validator\OrderLineItemValidator">
+            <argument type="service" id="monolog.logger"/>
+        </service>
 
     </services>
 
