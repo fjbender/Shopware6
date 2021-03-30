@@ -157,6 +157,7 @@
 
         <service id="Kiener\MolliePayments\Storefront\Controller\RefundController" public="true">
             <argument type="service" id="Kiener\MolliePayments\Factory\MollieApiFactory"/>
+            <argument type="service" id="monolog.logger"/>
             <argument type="service" id="order_line_item.repository"/>
             <argument type="service" id="Kiener\MolliePayments\Service\OrderService"/>
             <argument type="service" id="Shopware\Core\Checkout\Order\Aggregate\OrderTransaction\OrderTransactionStateHandler"/>
@@ -167,6 +168,7 @@
             </call>
 
             <argument type="service" id="Kiener\MolliePayments\Service\RefundService"/>
+            <argument type="service" id="monolog.logger"/>
         </service>
 
         <service id="Kiener\MolliePayments\Storefront\Controller\ShippingController" public="true">
