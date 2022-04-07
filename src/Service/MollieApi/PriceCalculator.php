@@ -29,7 +29,9 @@ class PriceCalculator
         $taxCollection = $price->getCalculatedTaxes();
 
         $vatRate = 0.0;
-        $itemTax = $this->getHighestTax($taxCollection);
+        //$itemTax = $this->getHighestTax($taxCollection);
+        // To avoid having net negative VAT in our order, let's use the lowest tax rate
+        $itemTax = $this->getLowestTax($taxCollection);
 
         if ($itemTax instanceof CalculatedTax) {
             $vatRate = $itemTax->getTaxRate();
@@ -105,6 +107,32 @@ class PriceCalculator
         });
 
         return $taxCollection->first();
+    }
+
+    // TODO: Remove this method when the new tax calculation is fully implemented
+    /**
+     * If we use the highest tax rate as in the method above, we might have a higher VAT sum on a voucher
+     * than the VAT sum on the rest of the items (happens when the basket has a lot of low tax items and
+     * one high tax item).
+     *
+     * @param CalculatedTaxCollection $taxCollection
+     * @return CalculatedTax|null
+     */
+    public function getLowestTax(CalculatedTaxCollection $taxCollection): ?CalculatedTax
+    {
+        if ($taxCollection->count() === 0) {
+            return null;
+        }
+
+        $taxCollection->sort(static function (CalculatedTax $taxOne, CalculatedTax $taxTwo) {
+            if ($taxOne->getTaxRate() === $taxTwo->getTaxRate()) {
+                return 0;
+            }
+
+            return ($taxOne->getTaxRate() < $taxTwo->getTaxRate() ? 1 : -1);
+        });
+
+        return $taxCollection->last();
     }
 
 }
